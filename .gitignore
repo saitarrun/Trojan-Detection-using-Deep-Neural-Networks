@@ -16,4 +16,7 @@ real_world_mystery_set/
 mystery_test_set/
 sample_trojai_models/
 training_zoo/
-meta_classifier.pkl
+*.pkl
+.env
+.env.*
+!.env.example

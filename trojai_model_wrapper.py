@@ -1,5 +1,7 @@
 import torch
 import torch.nn as nn
+import io
+import pickle
 
 class TrojAI_ModelWrapper(nn.Module):
     """
@@ -12,8 +14,28 @@ class TrojAI_ModelWrapper(nn.Module):
         self.device = device
         
         if isinstance(model_path_or_model, str):
-            # Load the raw TrojAI model from .pt file
-            self.model = torch.load(model_path_or_model, map_location=device, weights_only=False)
+            # Safe load: try weights_only=True, fall back to RestrictedUnpickler
+            _ALLOWED_PICKLE_GLOBALS = {
+                "torch", "torch.nn", "torch.nn.modules", "torch.nn.modules.module",
+                "torch.nn.modules.container", "torch.nn.modules.linear",
+                "torch.nn.modules.conv", "torch.nn.modules.batchnorm",
+                "torch.nn.modules.activation", "torch.nn.modules.pooling",
+                "torch.nn.modules.dropout", "torch._utils",
+                "torchvision.models", "torchvision.models.resnet",
+                "collections", "numpy", "numpy.core.multiarray",
+                "_codecs", "builtins",
+            }
+            import io as _io, pickle as _pickle
+            class _RestrictedUnpickler(_pickle.Unpickler):
+                def find_class(self, module, name):
+                    if any(module == m or module.startswith(m + ".") for m in _ALLOWED_PICKLE_GLOBALS):
+                        return super().find_class(module, name)
+                    raise _pickle.UnpicklingError(f"Blocked: {module}.{name}")
+            try:
+                self.model = torch.load(model_path_or_model, map_location=device, weights_only=True)
+            except Exception:
+                with open(model_path_or_model, "rb") as _f:
+                    self.model = _RestrictedUnpickler(_f).load()
         else:
             self.model = model_path_or_model
             

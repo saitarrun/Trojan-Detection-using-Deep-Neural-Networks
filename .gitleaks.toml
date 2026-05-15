@@ -1,0 +1,10 @@
+[allowlist]
+  description = "Global allowlist"
+  paths = [
+    '''redis-stable''',
+    '''venv''',
+    '''\.git''',
+    '''training\.log''',
+    '''worker\.log''',
+    '''api\.log''',
+  ]

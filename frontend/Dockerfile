@@ -1,22 +1,28 @@
-# Production-grade Dockerfile for Next.js
-FROM node:20-alpine
-
+FROM node:20-alpine AS deps
 WORKDIR /app
-
-# Install dependencies first (for caching)
 COPY package.json package-lock.json* ./
-RUN npm install
+RUN npm ci --omit=dev
 
-# Copy the rest of the application
+FROM node:20-alpine AS builder
+WORKDIR /app
+COPY package.json package-lock.json* ./
+RUN npm ci
 COPY . .
-
-# Build the application
-# We use dev mode for this playground-style deployment to allow hot reloading if volumes are mounted,
-# but for a "Professional UI" we should build. Let's build.
+ARG API_URL=http://localhost:8000
+ARG API_TOKEN=dev-secret
+ENV NEXT_PUBLIC_API_BASE=$API_URL
+ENV NEXT_PUBLIC_API_TOKEN=$API_TOKEN
 RUN npm run build
 
-# Expose the port Next.js runs on
+FROM node:20-alpine AS runner
+WORKDIR /app
+RUN addgroup --system --gid 1001 nodejs && adduser --system --uid 1001 nextjs
+COPY --from=builder /app/public ./public
+COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
+COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
+USER nextjs
 EXPOSE 3000
-
-# Start the application
-CMD ["npm", "run", "start"]
+HEALTHCHECK --interval=30s --timeout=5s --start-period=15s --retries=3 \
+    CMD wget -qO- http://localhost:3000/ || exit 1
+ENV NODE_ENV=production
+CMD ["node", "server.js"]

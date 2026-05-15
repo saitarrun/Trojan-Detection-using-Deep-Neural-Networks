@@ -1,3 +1,4 @@
+import os
 import torch
 from torch.utils.data import Dataset
 from torchvision import datasets, transforms
@@ -110,8 +111,8 @@ def get_cifar10_dataloaders(batch_size=128, poison_ratio=0.1, target_class=0, tr
     ])
     
     # Download datasets
-    train_set = datasets.CIFAR10(root='./data', train=True, download=True, transform=transform_train)
-    test_set = datasets.CIFAR10(root='./data', train=False, download=True, transform=transform_test)
+    train_set = datasets.CIFAR10(root=os.environ.get('CIFAR10_DATA_DIR', '/app/data'), train=True, download=True, transform=transform_train)
+    test_set = datasets.CIFAR10(root=os.environ.get('CIFAR10_DATA_DIR', '/app/data'), train=False, download=True, transform=transform_test)
     
     # Poisoned train set
     poisoned_train_set = BadNetsDataset(train_set, poison_ratio=poison_ratio, target_class=target_class, trigger_type=trigger_type, is_train=True)
